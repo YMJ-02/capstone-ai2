@@ -101,17 +101,32 @@ def _random_pose() -> List[dict]:
     ]
 
 
-def fall_scenario(t_elapsed: float) -> List[dict]:
-    """0~5s 직립, 5~5.4s 급강하 + 자세 전환, 5.4s~ 수평 정지."""
-    if t_elapsed < 5.0:
-        return _stable_pose(hip_y=0.5)
-    if t_elapsed < 5.4:
-        progress = (t_elapsed - 5.0) / 0.4
+FALL_CYCLE_SEC = 30.0
+
+
+def fall_scenario(t_elapsed: float) -> tuple[List[dict], str]:
+    """30초 주기로 직립 → 급강하 → 누움 정지 → 일어남 → 직립을 반복.
+
+    되돌아오는 두 번째 값은 현재 phase 이름 (로그용).
+    """
+    cycle = t_elapsed % FALL_CYCLE_SEC
+    if cycle < 5.0:
+        return _stable_pose(hip_y=0.5), "stable"
+    if cycle < 5.4:
+        progress = (cycle - 5.0) / 0.4
         hip_y = 0.5 + 0.35 * progress
         if progress > 0.6:
-            return _lying_pose(hip_y=hip_y)
-        return _stable_pose(hip_y=hip_y)
-    return _lying_pose(hip_y=0.85)
+            return _lying_pose(hip_y=hip_y), "falling"
+        return _stable_pose(hip_y=hip_y), "falling"
+    if cycle < 15.0:
+        return _lying_pose(hip_y=0.85), "lying"
+    if cycle < 15.4:
+        progress = (cycle - 15.0) / 0.4
+        hip_y = 0.85 - 0.35 * progress
+        if progress > 0.5:
+            return _stable_pose(hip_y=hip_y), "standing_up"
+        return _lying_pose(hip_y=hip_y), "standing_up"
+    return _stable_pose(hip_y=0.5), "stable"
 
 
 def make_payload(frame_id: int, landmarks: List[dict], node_id: str = "fake-vision-01") -> dict:
@@ -140,18 +155,27 @@ def main() -> int:
         f"[fake_vision] PUB bound on {args.bind} topic={args.topic} "
         f"fps={args.fps} scenario={args.scenario}"
     )
+    if args.scenario == "fall":
+        print(f"[fake_vision] fall cycle: stable(0-5s) → falling(5-5.4s) → "
+              f"lying(5.4-15s) → standing_up(15-15.4s) → stable, "
+              f"loops every {FALL_CYCLE_SEC:.0f}s")
     time.sleep(0.5)
     start = time.time()
     frame_id = 0
+    last_phase = ""
     try:
         while True:
             t = time.time() - start
+            phase = args.scenario
             if args.scenario == "random":
                 lms = _random_pose()
             elif args.scenario == "stable":
                 lms = _stable_pose()
             else:
-                lms = fall_scenario(t)
+                lms, phase = fall_scenario(t)
+                if phase != last_phase:
+                    print(f"[fake_vision] t={t:6.1f}s phase={phase}")
+                    last_phase = phase
             sock.send_string(f"{args.topic} {json.dumps(make_payload(frame_id, lms))}")
             frame_id += 1
             time.sleep(period)

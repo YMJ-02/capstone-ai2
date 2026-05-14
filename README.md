@@ -90,15 +90,22 @@ ZMQ_ENDPOINT=tcp://127.0.0.1:5555 python -m src.main
 
 ### 4) 낙상 시나리오 검증 — Phase 2
 
-터미널 A를 fall 시나리오로 교체:
+**기본 시나리오(`random`)는 일부러 낙상을 안 발생시킨다** — 좌표가 매 프레임 균등 난수라
+bbox 종횡비가 ~1.0으로 누운 자세 조건(>1.3)을 못 만족시키기 때문. 낙상을 보려면
+명시적으로 `--scenario fall`을 사용한다:
+
 ```bash
 python tools/fake_vision.py --scenario fall --fps 10
 ```
 
-기대 동작 (시작 후 약 5.5초경):
-- 메인 로그에 `rule_gate: NORMAL → DESCENDING` → `rule_gate: DESCENDING → FALLEN` → `FALL CONFIRMED conf=0.xx`
-- B 터미널에 `edgesafe/ai/fall` 토픽으로 한 번 fall_detected 메시지 발행
-- 이후 5초간은 cooldown, status는 계속 발행됨
+이 시나리오는 **30초 주기로** 직립→급강하→누움→일어남→직립을 반복하므로,
+main을 언제 켜도 다음 사이클부터 감지된다.
+
+기대 동작 (시작 후 약 5~6초경, 이후 30초마다 반복):
+- fake_vision 로그: `[fake_vision] t=  5.0s phase=falling` → `t=  5.4s phase=lying`
+- 메인 로그: `rule_gate: NORMAL → DESCENDING` → `rule_gate: DESCENDING → FALLEN`
+  → `rule_gate: FALLEN → NORMAL` → `FALL CONFIRMED conf=0.95`
+- B 터미널: `edgesafe/ai/fall` 토픽으로 fall_detected 메시지 1회 발행 (cooldown 5초)
 
 ### 5) 단위 테스트 (선택)
 

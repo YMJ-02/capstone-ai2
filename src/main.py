@@ -79,11 +79,25 @@ class App:
                                 frame.frame_id,
                             )
                         if self._frames_received % 50 == 0:
-                            log.info(
-                                "received %d frames, falls=%d",
-                                self._frames_received,
-                                self._falls_published,
-                            )
+                            hist = self.detector.gate.history
+                            last = hist[-1] if hist else None
+                            if last is not None:
+                                log.info(
+                                    "received %d frames, falls=%d, state=%s "
+                                    "torso=%.1f° hip_y=%.2f aspect=%.2f",
+                                    self._frames_received,
+                                    self._falls_published,
+                                    self.detector.gate.state.name,
+                                    last.torso_angle_deg,
+                                    last.hip_center_y,
+                                    last.bbox_aspect,
+                                )
+                            else:
+                                log.info(
+                                    "received %d frames, falls=%d (no valid features yet)",
+                                    self._frames_received,
+                                    self._falls_published,
+                                )
                     self._maybe_publish_status()
         finally:
             self.mqtt.disconnect()

@@ -45,22 +45,27 @@ class RuleGate:
 
     def update(self, f: Features) -> FallTrigger:
         self._history.append(f)
+        vel = self._hip_velocity()
         debug = {
             "state": self.state.name,
             "torso_deg": round(f.torso_angle_deg, 1),
             "hip_y": round(f.hip_center_y, 3),
             "bbox_aspect": round(f.bbox_aspect, 2),
+            "hip_velocity": round(vel, 3),
         }
+        log.debug(
+            "frame=%d state=%s torso=%.1f hip_y=%.3f aspect=%.2f vel=%.3f",
+            f.frame_id, self.state.name,
+            f.torso_angle_deg, f.hip_center_y, f.bbox_aspect, vel,
+        )
 
         if (f.timestamp - self._last_fall_at) < rule_cfg.fall_cooldown_sec and self._last_fall_at > 0:
             return FallTrigger(False, False, 0.0, debug)
 
         if self.state is State.NORMAL:
-            v = self._hip_velocity()
-            debug["hip_velocity"] = round(v, 3)
-            if v > rule_cfg.hip_drop_velocity_thresh:
-                self._transition(State.DESCENDING, f.timestamp)
-                conf = min(0.5 + (v - rule_cfg.hip_drop_velocity_thresh) * 0.3, 0.9)
+            if vel > rule_cfg.hip_drop_velocity_thresh:
+                self._transition(State.DESCENDING, f.timestamp, f)
+                conf = min(0.5 + (vel - rule_cfg.hip_drop_velocity_thresh) * 0.3, 0.9)
                 return FallTrigger(True, False, conf, debug)
             return FallTrigger(False, False, 0.0, debug)
 
@@ -68,14 +73,14 @@ class RuleGate:
             elapsed = f.timestamp - self._state_entered_at
             debug["elapsed_sec"] = round(elapsed, 2)
             if elapsed > rule_cfg.descending_to_fallen_timeout_sec:
-                self._transition(State.NORMAL, f.timestamp)
+                self._transition(State.NORMAL, f.timestamp, f)
                 return FallTrigger(False, False, 0.0, debug)
             if (
                 f.torso_angle_deg > rule_cfg.torso_angle_horizontal_deg
                 and f.hip_center_y > rule_cfg.hip_y_low_thresh
                 and f.bbox_aspect > rule_cfg.bbox_aspect_ratio_thresh
             ):
-                self._transition(State.FALLEN, f.timestamp)
+                self._transition(State.FALLEN, f.timestamp, f)
                 return FallTrigger(True, False, self._rule_confidence(f), debug)
             return FallTrigger(True, False, 0.0, debug)
 
@@ -83,15 +88,20 @@ class RuleGate:
             if self._is_still(f):
                 conf = self._rule_confidence(f)
                 self._last_fall_at = f.timestamp
-                self._transition(State.NORMAL, f.timestamp)
+                self._transition(State.NORMAL, f.timestamp, f)
                 return FallTrigger(True, True, conf, debug)
             return FallTrigger(True, False, 0.0, debug)
 
         return FallTrigger(False, False, 0.0, debug)
 
-    def _transition(self, to: State, t: float) -> None:
+    def _transition(self, to: State, t: float, f: Features) -> None:
         if self.state is not to:
-            log.info("rule_gate: %s → %s", self.state.name, to.name)
+            log.info(
+                "rule_gate: %s → %s  torso=%.1f° hip_y=%.2f aspect=%.2f vel=%.2f",
+                self.state.name, to.name,
+                f.torso_angle_deg, f.hip_center_y, f.bbox_aspect,
+                self._hip_velocity(),
+            )
         self.state = to
         self._state_entered_at = t
 

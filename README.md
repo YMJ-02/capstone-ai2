@@ -13,6 +13,8 @@ vision-pi(`capstone-vision`)가 ZMQ로 보내는 **MediaPipe 자세 좌표 33개
 - [x] Phase 3 — 1D-CNN 학습 + TFLite 통합 (rule confidence와 가중 융합)
 - [x] Phase 4 — systemd 서비스화
 - [x] Phase 5 — 실기기 E2E 검증 도구 (`tools/verify_e2e.py`, `docs/E2E_CHECKLIST.md`)
+- [x] capstone-app 어댑터 — Flutter 앱용 WebSocket(:8765) + HTTP /health(:8080)
+  (자세한 통합 가이드는 `docs/APP_INTEGRATION.md`)
 
 세부는 `docs/ARCHITECTURE.md` 참조.
 
@@ -24,11 +26,14 @@ capstone-ai2/
 │   ├── config.py              # 설정 (env 오버라이드)
 │   ├── io/
 │   │   ├── zmq_subscriber.py  # vision-pi 수신
-│   │   └── mqtt_publisher.py  # 알림/status 발행
+│   │   ├── mqtt_publisher.py  # 알림/status 발행
+│   │   ├── websocket_server.py# capstone-app용 매-frame broadcast (:8765)
+│   │   └── http_health.py     # capstone-app용 /health (:8080)
 │   ├── pipeline/
 │   │   ├── features.py        # 자세 → 특징 벡터
 │   │   ├── rule_gate.py       # 규칙 기반 1차 게이트 (상태머신)
-│   │   └── cnn_validator.py   # 1D-CNN 2차 검증 (TFLite 추론, 선택적)
+│   │   ├── cnn_validator.py   # 1D-CNN 2차 검증 (TFLite 추론, 선택적)
+│   │   └── app_payload.py     # capstone-app용 페이로드 변환
 │   ├── core/
 │   │   ├── event_builder.py   # MQTT 봉투 빌더
 │   │   └── fall_detector.py   # 파이프라인 조립 + rule/cnn 융합 + payload

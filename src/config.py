@@ -101,6 +101,24 @@ class CnnConfig:
 
 
 @dataclass(frozen=True)
+class AppBridgeConfig:
+    """capstone-app(Flutter) 통합용 WebSocket + HTTP 어댑터.
+
+    앱은 매 frame WS로 fall_prob/status/pose_data를 받고, /health 엔드포인트로
+    헬스 체크한다. 영상(MJPEG/clip)은 본 노드 범위 밖.
+    """
+    enabled: bool = _env("APP_BRIDGE_ENABLED", "true").lower() in ("1", "true", "yes")
+    ws_host: str = _env("APP_WS_HOST", "0.0.0.0")
+    ws_port: int = _env_int("APP_WS_PORT", 8765)
+    http_host: str = _env("APP_HTTP_HOST", "0.0.0.0")
+    http_port: int = _env_int("APP_HTTP_PORT", 8080)
+    # 앱의 fall_prob 임계값과 일치시켜야 status가 안정적으로 동작.
+    # main.dart의 FallData.fromJson 임계값 (>=0.7 FALL, >=0.4 WARNING) 기준.
+    warning_prob: float = _env_float("APP_WARNING_PROB", 0.5)
+    fall_prob: float = _env_float("APP_FALL_PROB", 0.8)
+
+
+@dataclass(frozen=True)
 class LogConfig:
     level: str = _env("LOG_LEVEL", "INFO")
 
@@ -110,4 +128,5 @@ mqtt_cfg = MqttConfig()
 node_cfg = NodeConfig()
 rule_cfg = RuleConfig()
 cnn_cfg = CnnConfig()
+app_cfg = AppBridgeConfig()
 log_cfg = LogConfig()

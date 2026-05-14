@@ -25,15 +25,28 @@ class FallEvent:
     rule_debug: dict
 
 
+@dataclass
+class FrameUpdate:
+    """매 frame 단위 결과. event는 confirmed 시에만 채워진다.
+
+    app_bridge가 매 frame 페이로드를 만들기 위해 features/state도 같이 노출.
+    features=None이면 가시성 미달로 특징 추출 실패한 frame.
+    """
+    state: State
+    features: Optional[Features]
+    cnn_prob: Optional[float]
+    event: Optional[FallEvent]
+
+
 class FallDetector:
     def __init__(self) -> None:
         self.gate = RuleGate()
         self.cnn: Optional[CnnValidator] = CnnValidator() if cnn_cfg.enabled else None
 
-    def update(self, frame: PoseFrame) -> Optional[FallEvent]:
+    def update(self, frame: PoseFrame) -> FrameUpdate:
         feats = extract(frame)
         if feats is None:
-            return None
+            return FrameUpdate(state=self.gate.state, features=None, cnn_prob=None, event=None)
 
         # CNN window는 항상 갱신 (가벼움). 추론은 의심 시점에만.
         if self.cnn is not None:
@@ -50,11 +63,12 @@ class FallDetector:
             if cnn_prob is not None:
                 trig.debug["cnn_prob"] = round(cnn_prob, 3)
 
+        event: Optional[FallEvent] = None
         if trig.confirmed:
             conf = self._fuse(trig.confidence, cnn_prob)
             trig.debug["fused_confidence"] = round(conf, 3)
-            return FallEvent(confidence=conf, last_features=feats, rule_debug=trig.debug)
-        return None
+            event = FallEvent(confidence=conf, last_features=feats, rule_debug=trig.debug)
+        return FrameUpdate(state=self.gate.state, features=feats, cnn_prob=cnn_prob, event=event)
 
     @staticmethod
     def _fuse(rule_conf: float, cnn_prob: Optional[float]) -> float:

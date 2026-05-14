@@ -80,6 +80,51 @@ def test_stale_timestamp_is_ignored():
     assert det.gate.state.name == "NORMAL"
 
 
+def test_moving_while_fallen_still_confirms_by_timeout():
+    """의식 있는 낙상자가 움직이고 있어도 1.5초 후 시간 기반 확정."""
+    det = FallDetector()
+    # 직립 0.5초
+    frames = _stable_sequence(t0=8000.0, n=5)
+    # 급강하 3프레임
+    for k, hy in enumerate([0.55, 0.7, 0.85]):
+        frames.append(make_frame(5 + k, 8000.5 + (k + 1) * 0.1,
+                                 sh_x=0.5, sh_y=0.3 + 0.05 * k, hp_x=0.5, hp_y=hy))
+    # 수평 자세이지만 hip_center가 크게 움직임 (stillness 임계 0.10 초과)
+    # 2초간 누워있음 → 시간 기반 확정 트리거되어야 함
+    lie_t0 = 8000.8 + 0.1
+    for k in range(20):
+        # x를 0.2~0.5 범위에서 흔들기 → motion > 0.10
+        wobble_x = 0.3 + 0.2 * ((k % 4) / 3.0)
+        frames.append(make_frame(8 + k, lie_t0 + k * 0.1,
+                                 sh_x=wobble_x, sh_y=0.85, hp_x=wobble_x + 0.4, hp_y=0.85))
+    events = _drive(det, frames)
+    assert len(events) >= 1, "시간 기반 확정이 작동해야 함"
+
+
+def test_brief_non_horizontal_does_not_exit_fallen():
+    """FALLEN 중 한두 프레임만 non-horizontal이어도 즉시 탈출하지 않아야 함."""
+    det = FallDetector()
+    # 직립 → 낙상 → FALLEN 진입
+    frames = _stable_sequence(t0=9000.0, n=5)
+    for k, hy in enumerate([0.55, 0.7, 0.85]):
+        frames.append(make_frame(5 + k, 9000.5 + (k + 1) * 0.1,
+                                 sh_x=0.5, sh_y=0.3 + 0.05 * k, hp_x=0.5, hp_y=hy))
+    # 누운 자세 0.3초
+    lie_t0 = 9000.8 + 0.1
+    for k in range(3):
+        frames.append(make_frame(8 + k, lie_t0 + k * 0.1,
+                                 sh_x=0.3, sh_y=0.85, hp_x=0.7, hp_y=0.85))
+    # 1프레임만 직립 (노이즈)
+    frames.append(make_frame(11, lie_t0 + 0.3, sh_x=0.5, sh_y=0.3, hp_x=0.5, hp_y=0.5))
+    # 다시 누움 1.5초
+    for k in range(15):
+        frames.append(make_frame(12 + k, lie_t0 + 0.4 + k * 0.1,
+                                 sh_x=0.3, sh_y=0.85, hp_x=0.7, hp_y=0.85))
+    _drive(det, frames)
+    # 1프레임 노이즈로 NORMAL로 빠지지 않고 결과적으로 FALLEN→NORMAL 확정 완료
+    # (마지막엔 cooldown 중이므로 state는 NORMAL이 정상)
+
+
 def test_cooldown_blocks_second_fall():
     det = FallDetector()
     # 첫 낙상

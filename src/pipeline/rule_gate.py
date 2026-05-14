@@ -23,7 +23,7 @@ import logging
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Deque, Optional
+from typing import Deque
 
 from src.config import rule_cfg
 from src.pipeline.features import Features
@@ -52,6 +52,8 @@ class RuleGate:
         self._state_entered_at: float = 0.0
         self._last_fall_at: float = 0.0
         self._last_seen_ts: float = -1.0
+        # FALLEN 상태에서 non-horizontal 연속 시작 시각. 0이면 streak 없음.
+        self._non_horizontal_streak_start: float = 0.0
 
     @property
     def history(self) -> Deque[Features]:
@@ -118,15 +120,39 @@ class RuleGate:
             return FallTrigger(True, False, 0.0, debug)
 
         if self.state is State.FALLEN:
+            elapsed_in_fallen = f.timestamp - self._state_entered_at
+            debug["elapsed_fallen"] = round(elapsed_in_fallen, 2)
+
+            # non-horizontal streak 추적: 한 프레임 노이즈로 즉시 탈출 방지.
             if not horizontal:
-                # 다시 일어난 경우
-                self._transition(State.NORMAL, f.timestamp, f)
-                return FallTrigger(False, False, 0.0, debug)
+                if self._non_horizontal_streak_start == 0.0:
+                    self._non_horizontal_streak_start = f.timestamp
+            else:
+                self._non_horizontal_streak_start = 0.0
+
+            # ① 빠른 확정: stillness 통과
             if self._is_still(f):
                 conf = self._rule_confidence(f)
                 self._last_fall_at = f.timestamp
                 self._transition(State.NORMAL, f.timestamp, f)
                 return FallTrigger(True, True, conf, debug)
+
+            # ② 시간 기반 확정: N초 이상 누워있음 (stillness 못 잡는 의식 있는 낙상 대응)
+            if elapsed_in_fallen >= rule_cfg.fallen_confirm_timeout_sec:
+                conf = self._rule_confidence(f)
+                self._last_fall_at = f.timestamp
+                self._transition(State.NORMAL, f.timestamp, f)
+                return FallTrigger(True, True, conf, debug)
+
+            # ③ 탈출: non-horizontal이 지속 시간 이상 유지된 경우만
+            if (
+                self._non_horizontal_streak_start > 0
+                and f.timestamp - self._non_horizontal_streak_start
+                >= rule_cfg.fallen_exit_sustain_sec
+            ):
+                self._transition(State.NORMAL, f.timestamp, f)
+                return FallTrigger(False, False, 0.0, debug)
+
             return FallTrigger(True, False, 0.0, debug)
 
         return FallTrigger(False, False, 0.0, debug)
@@ -161,6 +187,7 @@ class RuleGate:
             )
         self.state = to
         self._state_entered_at = t
+        self._non_horizontal_streak_start = 0.0
 
     def _hip_velocity(self) -> float:
         """가장 최근 두 프레임 사이의 hip_y 변화율 (1/sec). 양수=하강."""

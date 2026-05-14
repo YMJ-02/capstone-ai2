@@ -33,6 +33,9 @@ class Features:
     bbox_width: float
     bbox_height: float
     bbox_aspect: float
+    # shoulder-hip 수직거리. 직립이면 크고, 누우면 0에 가깝다.
+    # 카메라 각도에 따라 절대 hip_y 값보다 robust한 "누움" 신호.
+    torso_vertical_extent: float
 
 
 def _lm(landmarks: List[dict], idx: int) -> dict:
@@ -106,4 +109,5 @@ def extract(frame: PoseFrame, vis_thresh: Optional[float] = None) -> Optional[Fe
         bbox_width=bbox_w,
         bbox_height=bbox_h,
         bbox_aspect=bbox_aspect,
+        torso_vertical_extent=abs(hc_y - sc_y),
     )

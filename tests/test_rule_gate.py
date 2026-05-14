@@ -55,7 +55,29 @@ def test_fall_sequence_produces_confirmed_event():
     e = events[0]
     assert e.confidence > 0.5
     assert e.last_features.torso_angle_deg > rule_cfg.torso_angle_horizontal_deg
-    assert e.last_features.hip_center_y > rule_cfg.hip_y_low_thresh
+    assert e.last_features.torso_vertical_extent < rule_cfg.torso_vertical_extent_thresh
+
+
+def test_already_lying_pose_detects_fall():
+    """카메라 시작 직후 이미 누워있는 케이스: vel 없어도 FALLEN으로 가야 함."""
+    det = FallDetector()
+    # 처음부터 수평 자세 + 정지 1초
+    frames = [
+        make_frame(i, 5000.0 + i * 0.1, sh_x=0.3, sh_y=0.85, hp_x=0.7, hp_y=0.85)
+        for i in range(15)
+    ]
+    events = _drive(det, frames)
+    assert len(events) >= 1
+
+
+def test_stale_timestamp_is_ignored():
+    """같은 timestamp 프레임이 반복되어도 상태에 갇히지 않아야 한다."""
+    det = FallDetector()
+    f0 = make_frame(0, 7000.0, sh_x=0.5, sh_y=0.3, hp_x=0.5, hp_y=0.5)
+    # 동일 timestamp로 50회 반복
+    for _ in range(50):
+        det.update(f0)
+    assert det.gate.state.name == "NORMAL"
 
 
 def test_cooldown_blocks_second_fall():

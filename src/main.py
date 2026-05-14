@@ -84,13 +84,14 @@ class App:
                             if last is not None:
                                 log.info(
                                     "received %d frames, falls=%d, state=%s "
-                                    "torso=%.1f° hip_y=%.2f aspect=%.2f",
+                                    "torso=%.1f° vert=%.2f aspect=%.2f hip_y=%.2f",
                                     self._frames_received,
                                     self._falls_published,
                                     self.detector.gate.state.name,
                                     last.torso_angle_deg,
-                                    last.hip_center_y,
+                                    last.torso_vertical_extent,
                                     last.bbox_aspect,
+                                    last.hip_center_y,
                                 )
                             else:
                                 log.info(

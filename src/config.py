@@ -65,10 +65,14 @@ class RuleConfig:
     window_size: int = _env_int("WINDOW_SIZE", 20)
     hip_drop_velocity_thresh: float = _env_float("HIP_DROP_VELOCITY_THRESH", 0.6)
     torso_angle_horizontal_deg: float = _env_float("TORSO_ANGLE_HORIZONTAL_DEG", 55.0)
-    bbox_aspect_ratio_thresh: float = _env_float("BBOX_ASPECT_RATIO_THRESH", 1.3)
-    hip_y_low_thresh: float = _env_float("HIP_Y_LOW_THRESH", 0.65)
+    bbox_aspect_ratio_thresh: float = _env_float("BBOX_ASPECT_RATIO_THRESH", 1.1)
+    # shoulder-hip 수직거리. 누우면 작아진다 (정규화 좌표 0~1 기준).
+    # 직립 약 0.25, 누움 약 0.05 → 0.12 정도면 누움으로 판정.
+    torso_vertical_extent_thresh: float = _env_float(
+        "TORSO_VERTICAL_EXTENT_THRESH", 0.12
+    )
     descending_to_fallen_timeout_sec: float = _env_float(
-        "DESCENDING_TO_FALLEN_TIMEOUT_SEC", 1.5
+        "DESCENDING_TO_FALLEN_TIMEOUT_SEC", 2.5
     )
     stillness_window_sec: float = _env_float("STILLNESS_WINDOW_SEC", 0.8)
     stillness_motion_thresh: float = _env_float("STILLNESS_MOTION_THRESH", 0.05)

@@ -74,8 +74,14 @@ class RuleConfig:
     descending_to_fallen_timeout_sec: float = _env_float(
         "DESCENDING_TO_FALLEN_TIMEOUT_SEC", 2.5
     )
+    # FALLEN 진입 후 이 시간 이상 누워있으면 stillness 무관하게 확정.
+    # 실 환경에서 의식 있는 사람이 움직이는 경우 stillness가 못 잡는 케이스 대응.
+    fallen_confirm_timeout_sec: float = _env_float("FALLEN_CONFIRM_TIMEOUT_SEC", 1.5)
+    # FALLEN에서 non-horizontal이 이 시간 이상 지속되어야 NORMAL로 탈출.
+    # 한 프레임 노이즈(손 들기 등)로 즉시 탈출하는 것을 방지.
+    fallen_exit_sustain_sec: float = _env_float("FALLEN_EXIT_SUSTAIN_SEC", 0.5)
     stillness_window_sec: float = _env_float("STILLNESS_WINDOW_SEC", 0.8)
-    stillness_motion_thresh: float = _env_float("STILLNESS_MOTION_THRESH", 0.05)
+    stillness_motion_thresh: float = _env_float("STILLNESS_MOTION_THRESH", 0.10)
     landmark_visibility_thresh: float = _env_float("LANDMARK_VISIBILITY_THRESH", 0.5)
     fall_cooldown_sec: float = _env_float("FALL_COOLDOWN_SEC", 5.0)
 

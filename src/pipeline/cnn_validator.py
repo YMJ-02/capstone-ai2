@@ -63,9 +63,20 @@ class CnnValidator:
         if not self.enabled:
             return False
         try:
-            try:
-                from tflite_runtime.interpreter import Interpreter  # type: ignore
-            except ImportError:
+            # 세 가지 런타임을 차례로 시도: tflite-runtime(가장 가벼움) →
+            # ai-edge-litert(최신 LiteRT) → tensorflow(가장 무겁지만 만능).
+            Interpreter = None
+            for mod_path in (
+                "tflite_runtime.interpreter",
+                "ai_edge_litert.interpreter",
+            ):
+                try:
+                    Interpreter = getattr(__import__(mod_path, fromlist=["Interpreter"]),
+                                          "Interpreter")
+                    break
+                except ImportError:
+                    continue
+            if Interpreter is None:
                 import tensorflow as _tf  # type: ignore
                 Interpreter = _tf.lite.Interpreter  # type: ignore
             self._interp = Interpreter(model_path=str(self._path))

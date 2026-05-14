@@ -138,6 +138,24 @@ scp models/fall_validator.tflite ai@<pi-ip>:~/projects/capstone-ai2/models/
 - 없으면 자동 비활성화 (규칙 게이트 단독으로 동작) — 시스템은 항상 fail-safe
 - 활성화 시 `fall_detected.ai.method = "rule+cnn"`, fusion confidence = `0.6*rule + 0.4*cnn`
 
+**Pi에서 CNN 추론 활성화 (선택)** — `models/fall_validator.tflite` 가 있어도 Pi에
+TFLite 추론 라이브러리가 없으면 CNN은 자동 비활성화된다. 활성화하려면 아래 중 하나를
+설치 (가벼운 순):
+
+```bash
+# 옵션 A: tflite-runtime (가장 가벼움, Python 3.7~3.11 호환)
+pip install tflite-runtime
+
+# 옵션 B: ai-edge-litert (최신 LiteRT, Python 3.9+ 권장)
+pip install ai-edge-litert
+
+# 옵션 C: tensorflow (가장 무겁지만 만능, Python 3.13까지 호환)
+pip install tensorflow
+```
+
+`cnn_validator.py` 는 위 세 가지를 차례로 시도하므로 어느 하나라도 깔리면 동작.
+설치 실패 시 시스템은 그대로 규칙 게이트만으로 동작하므로 운영에 영향 없음.
+
 학습 데이터는 `ml/data_synth.py` 의 시뮬레이션. 실 데이터셋 라벨링이 가능해지면
 같은 입력 스펙(WINDOW_LEN=30, N_FEATURES=5)으로 fine-tuning 권장.
 

@@ -1,0 +1,4 @@
+# Phase 3 — 학습 전용 (Pi가 아닌 개발 머신에서 사용).
+# `python -m ml.train` 으로 모델을 생성한 뒤 .tflite 만 Pi에 복사하면 된다.
+-r requirements.txt
+tensorflow>=2.15,<2.20

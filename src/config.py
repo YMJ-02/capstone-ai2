@@ -87,6 +87,20 @@ class RuleConfig:
 
 
 @dataclass(frozen=True)
+class CnnConfig:
+    """Phase 3 — 1D-CNN 2차 검증기."""
+    enabled: bool = _env("CNN_ENABLED", "true").lower() in ("1", "true", "yes")
+    model_path: str = _env(
+        "CNN_MODEL_PATH",
+        str(Path(__file__).resolve().parents[1] / "models" / "fall_validator.tflite"),
+    )
+    # CNN p(fall)가 이 값 이상이면 의심 → fusion 시 가산.
+    fall_prob_thresh: float = _env_float("CNN_FALL_PROB_THRESH", 0.5)
+    # 최종 confidence = (1-w) * rule + w * cnn. CNN을 얼마나 신뢰할지.
+    fusion_weight: float = _env_float("CNN_FUSION_WEIGHT", 0.4)
+
+
+@dataclass(frozen=True)
 class LogConfig:
     level: str = _env("LOG_LEVEL", "INFO")
 
@@ -95,4 +109,5 @@ zmq_cfg = ZmqConfig()
 mqtt_cfg = MqttConfig()
 node_cfg = NodeConfig()
 rule_cfg = RuleConfig()
+cnn_cfg = CnnConfig()
 log_cfg = LogConfig()

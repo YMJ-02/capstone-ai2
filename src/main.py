@@ -1,4 +1,6 @@
-"""엔트리 포인트. Phase 1: ZMQ에서 프레임을 받고 MQTT status heartbeat를 발행한다.
+"""엔트리 포인트.
+
+Phase 2: ZMQ 프레임 → FallDetector(rule gate) → MQTT 발행 (fall + status).
 
 실행:
     python -m src.main
@@ -13,6 +15,7 @@ from types import FrameType
 from typing import Optional
 
 from src.config import log_cfg, mqtt_cfg
+from src.core.fall_detector import FallDetector, build_fall_payload
 from src.io.mqtt_publisher import MqttPublisher
 from src.io.zmq_subscriber import ZmqPoseSubscriber
 
@@ -23,9 +26,11 @@ class App:
     def __init__(self) -> None:
         self.mqtt = MqttPublisher()
         self.zmq_sub = ZmqPoseSubscriber()
+        self.detector = FallDetector()
         self._stop = False
         self._started_at = time.time()
         self._frames_received = 0
+        self._falls_published = 0
         self._last_status_at = 0.0
 
     def _signal_handler(self, signum: int, _frame: Optional[FrameType]) -> None:
@@ -44,6 +49,7 @@ class App:
                 "stats": {
                     "uptime_sec": int(uptime),
                     "frames_received": self._frames_received,
+                    "falls_published": self._falls_published,
                     "fps": round(fps, 2),
                 },
             }
@@ -62,11 +68,21 @@ class App:
                         break
                     if frame is not None:
                         self._frames_received += 1
+                        event = self.detector.update(frame)
+                        if event is not None:
+                            payload = build_fall_payload(event)
+                            self.mqtt.publish_fall(payload)
+                            self._falls_published += 1
+                            log.warning(
+                                "FALL CONFIRMED conf=%.2f frame_id=%d",
+                                event.confidence,
+                                frame.frame_id,
+                            )
                         if self._frames_received % 50 == 0:
                             log.info(
-                                "received %d frames, latest frame_id=%d",
+                                "received %d frames, falls=%d",
                                 self._frames_received,
-                                frame.frame_id,
+                                self._falls_published,
                             )
                     self._maybe_publish_status()
         finally:

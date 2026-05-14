@@ -10,9 +10,9 @@ from tests.conftest import make_frame
 def _drive(detector: FallDetector, frames):
     events = []
     for f in frames:
-        e = detector.update(f)
-        if e is not None:
-            events.append(e)
+        upd = detector.update(f)
+        if upd.event is not None:
+            events.append(upd.event)
     return events
 
 

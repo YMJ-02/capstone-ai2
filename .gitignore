@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+*.log
+.pytest_cache/
+.coverage
+.DS_Store
+.idea/
+.vscode/
+dataset.npz

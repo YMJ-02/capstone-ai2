@@ -1,0 +1,30 @@
+[Unit]
+Description=EdgeSafe AI Node (capstone-ai2) — pose subscriber + fall detector + MQTT publisher
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ai
+Group=ai
+WorkingDirectory=/home/ai/projects/capstone-ai2
+EnvironmentFile=-/home/ai/projects/capstone-ai2/.env
+ExecStart=/home/ai/projects/capstone-ai2/.venv/bin/python -m src.main
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=edgesafe-ai
+
+# 안정성: 메모리/CPU 폭주 시 자동 재시작 (선택적)
+MemoryMax=512M
+CPUQuota=80%
+
+# 보안: 시스템 경로 쓰기 차단
+ProtectSystem=full
+ProtectHome=false
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

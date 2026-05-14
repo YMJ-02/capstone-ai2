@@ -11,3 +11,7 @@ venv/
 .idea/
 .vscode/
 dataset.npz
+
+# 학습 산출물 — .tflite만 push, .keras는 재현 가능하므로 제외
+models/*.keras
+models/training_report.txt

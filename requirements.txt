@@ -2,3 +2,7 @@ pyzmq>=25,<27
 paho-mqtt>=1.6,<2
 python-dotenv>=1.0,<2
 numpy>=1.24,<3
+# Phase 3 — TFLite 추론. 라즈베리파이는 tflite-runtime을 권장하나, pip 환경에 따라 설치가
+# 까다로우므로 자동 폴백: cnn_validator가 tflite_runtime → tensorflow 순서로 시도한다.
+# Pi에 tflite_runtime이 없으면 CNN은 자동 비활성화되고 규칙 게이트만으로 동작.
+# tflite_runtime>=2.13
